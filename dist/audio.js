@@ -1,0 +1,7 @@
+export class Sound{
+ constructor(){this.enabled=false;this.ctx=null;this.next=0;this.step=0;}
+ async toggle(){this.enabled=!this.enabled;if(this.enabled){try{this.ctx??=new(window.AudioContext||window.webkitAudioContext)();await this.ctx.resume();this.next=0;this.chime('reveal');}catch{this.enabled=false;}}return this.enabled;}
+ tone(freq,time,duration,volume=.025,type='sine'){if(!this.ctx||!this.enabled)return;const o=this.ctx.createOscillator(),v=this.ctx.createGain();o.type=type;o.frequency.value=freq;v.gain.setValueAtTime(0,time);v.gain.linearRampToValueAtTime(volume,time+.025);v.gain.exponentialRampToValueAtTime(.0001,time+duration);o.connect(v);v.connect(this.ctx.destination);o.start(time);o.stop(time+duration+.02);}
+ update(){if(!this.enabled||!this.ctx||document.hidden)return;const now=this.ctx.currentTime;if(now<this.next)return;this.next=now+3.8;const notes=[146.83,220,293.66,329.63,440,293.66,196,220];const n=notes[this.step++%notes.length];this.tone(n/2,now,4.5,.009);this.tone(n,now+.2,3.8,.009);this.tone(n*2,now+.65,2.4,.004);}
+ chime(type){if(!this.enabled||!this.ctx)return;const t=this.ctx.currentTime;const seq={solve:[293.66,369.99,440,587.33],beacon:[220,293.66,369.99,440,587.33],relic:[329.63,440,659.25],memory:[293.66,440,587.33],bell:[220,440,660],cut:[130,90],wrong:[164.81,146.83],hook:[220,440],freeze:[659.25,440,329.63],click:[196],chime:[440,587.33],reveal:[293.66,440]}[type]||[293.66];seq.forEach((n,i)=>this.tone(n,t+i*.09,type==='bell'?1.8:.7,.024,type==='cut'?'triangle':'sine'));}
+}

@@ -1,0 +1,10 @@
+{
+  "name": "hollowmere",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node tests/campaign.test.js && node tests/navigation.test.js",
+    "check": "node --check dist/game.js && node --check dist/engine.js && node --check dist/renderer.js && node --check dist/content.js"
+  }
+}
