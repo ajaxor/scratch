@@ -1,90 +1,80 @@
-import{W,H,RELICS,ZONES,ROOMS,DOOR_POS,DIRS,OPPOSITE,exitsFor,WEIGHT_LAYOUTS,SEQUENCES,VALVES,ECHOES,MIRRORS}from'./content.js';
-const clone=x=>JSON.parse(JSON.stringify(x)),distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+import{W,H,CAMPAIGN,ROOMS,OBJECTS,RELICS,DOOR_POS,DIRS,exitsFor}from'./content.js?v=opening-1';
+const clone=x=>JSON.parse(JSON.stringify(x));
+const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
 export class Game{
- constructor(saved=null){this.events=[];this.history=[];this.state=saved?clone(saved):{version:1,room:'hub',x:8,y:9,face:[0,-1],hp:5,relics:['lantern'],equipped:'lantern',beacons:[],memories:[],visited:['hub'],rooms:{},steps:0,seconds:0,hints:0,ended:false};this.current();}
- get room(){return ROOMS[this.state.room]}
- get data(){return this.current()}
+ constructor(saved=null){if(saved&&!validSave(saved))throw Error('This save is not a valid opening-chapter journey.');this.state=saved?clone(saved):{version:2,campaign:CAMPAIGN,room:'H',x:8,y:9,face:[0,-1],relics:['lantern'],equipped:'lantern',visited:['H'],connections:[],observations:[],notes:'',seconds:0,steps:0,world:{shadeClosed:false,cords:[false,false],cabinetOpen:false,trellisCut:false,damper:false,lanternAt:null},positions:{},discoveries:[]};this.events=[];this.history=[];}
+ get room(){return ROOMS[this.state.room];}
+ get data(){return{objects:this.room.objects.map(o=>({...o,...this.state.positions[this.state.room+':'+o.id]}))};}
+ snapshot(){return clone(this.state);}
+ has(id){return this.state.relics.includes(id);}
  emit(type,text,extra={}){this.events.push({type,text,...extra});}
- say(t){this.emit('message',t);}
- checkpoint(){this.history.push(clone(this.state));if(this.history.length>80)this.history.shift();}
- undo(){if(!this.history.length){this.say('No footsteps to take back yet.');return;}const oldRoom=this.state.room;this.state=this.history.pop();this.events=[];this.emit('undo','A moment, returned.');if(oldRoom!==this.state.room)this.emit('arrive',this.room.name);}
- current(){const s=this.state;if(!s.rooms[s.room])s.rooms[s.room]=this.build(ROOMS[s.room]);return s.rooms[s.room]}
- build(r){const d={grid:Array.from({length:H},(_,y)=>Array.from({length:W},(_,x)=>x<1||x>15||y<1||y>11?'~':x===1||x===15||y===1||y===11?'#':'.')),objects:[],solved:false,progress:[],revealed:false,turn:0,frozen:0,timer:0,lit:false};const put=(type,x,y,extra={})=>d.objects.push({type,x,y,...extra});
- for(const e of exitsFor(r.id)){const[x,y]=DOOR_POS[e.dir];d.grid[y][x]='D';}
- if(r.type==='hub'){[[4,3],[12,3],[4,9],[12,9]].forEach(([x,y])=>d.grid[y][x]='#');put('keeper',5,6);put('portal',8,4,{label:'Observatory',need:4});put('hearth',11,6,{need:5});put('rest',8,8);d.solved=true;}
- if(r.type==='ending'){put('hearth',8,4,{final:true});d.solved=true;}
- if(r.type==='relic'){put('relic',8,5,{relic:ZONES[r.zone].relic});put('rest',5,7);[[4,3],[12,3]].forEach(([x,y])=>d.grid[y][x]='#');}
- if(r.type==='beacon'){put('beacon',8,5);put('return',8,9);[[4,4],[12,4],[4,8],[12,8]].forEach(([x,y])=>d.grid[y][x]='#');}
- if(r.type==='secret'){put('chest',8,5);[[4,4],[12,4]].forEach(([x,y])=>d.grid[y][x]='#');}
- if(r.type==='weights'){const a=WEIGHT_LAYOUTS[r.variant];a.forEach((row,y)=>[...row].forEach((ch,x)=>{const xx=x+4,yy=y+3;d.grid[yy][xx]=ch==='#'?'#':'.';if(ch==='$')put('crate',xx,yy);if(ch==='o')put('plate',xx,yy);}));}
- if(r.type==='sequence'){[[8,3],[12,6],[8,9],[4,6]].forEach(([x,y],i)=>put('brazier',x,y,{index:i,on:false,label:['N','E','S','W'][i]}));put('inscription',8,6);}
- if(r.type==='vines'){[[5,4],[11,4],[8,8]].forEach(([x,y],i)=>{put('seed',x,y,{on:false,index:i});for(const[dx,dy]of Object.values(DIRS))put('vine',x+dx,y+dy);});}
- if(r.type==='runes'){[[5,4],[11,4],[5,8],[11,8]].forEach(([x,y],i)=>put('rune',x,y,{index:i,label:['Leaf','Rain','Sun','Moon'][i]}));put('inscription',8,6);}
- if(r.type==='anchors'){
- for(let y=3;y<=9;y++)for(let x=3;x<=13;x++)d.grid[y][x]='~';
- const islands=r.variant==='hook1'?[[5,9],[5,4],[11,4],[11,8]]:[[4,9],[4,4],[9,4],[9,8],[12,8],[12,3]];
- for(const[x,y]of islands){d.grid[y][x]='.';put('anchor',x,y);}
- const start=islands[0];for(let y=start[1];y<=10;y++)d.grid[y][start[0]]='.';
- const last=islands[islands.length-1];for(let y=2;y<=last[1];y++)if(r.variant==='hook1'&&y>5){}else d.grid[y][last[0]]='.';
- islands.slice(1).forEach(([x,y],i)=>{if(i%2===0||i===islands.length-2)put('seed',x,y,{on:false,index:i});});
+ say(text){this.emit('message',text);}
+ checkpoint(snapshot=this.snapshot()){this.history.push(snapshot);if(this.history.length>160)this.history.shift();}
+ undo(){if(!this.history.length)return;const old=this.state.room;const notes=this.state.notes;this.state=this.history.pop();this.state.notes=notes;this.events=[];this.say('A moment, returned.');if(old!==this.state.room)this.emit('arrive',this.room.name);}
+ equip(id){if(!this.has(id))return;this.state.equipped=id;}
+ tile(x,y){if(x<1||y<1||x>15||y>11)return'~';if(exitsFor(this.state.room).some(e=>DOOR_POS[e.dir][0]===x&&DOOR_POS[e.dir][1]===y))return'D';if(x===1||x===15||y===1||y===11||this.room.walls?.some(([a,b])=>a===x&&b===y))return'#';if(this.room.water?.some(([a,b,c,d])=>x>=a&&x<=c&&y>=b&&y<=d))return'~';return'.';}
+ objectsAt(x,y){return this.data.objects.filter(o=>o.x===x&&o.y===y);}
+ solid(o){return !o.floor&&!(o.type==='binding'&&this.state.world.trellisCut);}
+ passable(x,y){return ['.','D'].includes(this.tile(x,y))&&!this.objectsAt(x,y).some(o=>this.solid(o));}
+ allowedExit(){return true;}
+ landing(x,y,room=this.state.room){return exitsFor(room).some(e=>{const[a,b]=DOOR_POS[e.dir],[dx,dy]=DIRS[e.dir];return x===a-dx&&y===b-dy;});}
+ move(dx,dy){if(Math.abs(dx)+Math.abs(dy)!==1)return false;const s=this.state,previous=this.snapshot();s.face=[dx,dy];const x=s.x+dx,y=s.y+dy;
+  if(this.tile(x,y)==='D'){const e=exitsFor(s.room).find(e=>DOOR_POS[e.dir][0]===x&&DOOR_POS[e.dir][1]===y);this.checkpoint(previous);s.steps++;this.enter(e.to,s.room);return true;}
+  if(['#','~'].includes(this.tile(x,y)))return false;
+  const o=this.objectsAt(x,y).find(o=>this.solid(o));
+  if(o){if(o.movable&&this.passable(x+dx,y+dy)&&this.tile(x+dx,y+dy)!=='D'&&!this.landing(x+dx,y+dy)){this.checkpoint(previous);s.positions[s.room+':'+o.id]={x:x+dx,y:y+dy};s.x=x;s.y=y;s.steps++;this.say('The wheels scrape across the stone.');return true;}this.say(this.describe(o));return false;}
+  this.checkpoint(previous);s.x=x;s.y=y;s.steps++;return true;
  }
- if(r.type==='valves'){d.values=[0,0,0];[5,8,11].forEach((x,i)=>put('valve',x,5,{index:i}));put('sluice',8,8);for(let x=3;x<=13;x++)d.grid[3][x]='~';}
- if(r.type==='mirrors'){const m=MIRRORS[r.variant];put('source',m.source[0],m.source[1],{dx:m.source[2],dy:m.source[3]});m.mirrors.forEach(([x,y,angle],i)=>put('mirror',x,y,{angle,index:i}));put('receiver',m.target[0],m.target[1]);}
- if(r.type==='resonance'){d.notes=[...ECHOES[r.variant]];const positions=d.notes.length===3?[[5,6],[8,6],[11,6]]:[[5,4],[11,4],[12,7],[8,9],[4,7]];positions.forEach(([x,y],i)=>put('resonator',x,y,{index:i}));}
- if(r.type==='timed'){put('clock',4,8);put('seed',12,4,{on:false,index:0});for(let y=2;y<=10;y++)d.grid[y][9]='#';d.grid[6][9]='.';put('timegate',9,6);if(r.variant==='time2'){for(let x=5;x<=8;x++)for(let y=2;y<=10;y++)d.grid[y][x]='~';d.grid[8][4]='.';for(let yy=2;yy<=8;yy++)d.grid[yy][8]='.';put('anchor',4,8);put('anchor',8,8);put('clock',8,8);d.objects.find(o=>o.type==='seed').x=13;}}
- return d;}
- has(id){return this.state.relics.includes(id)}
- equip(id){if(!this.has(id))return;this.state.equipped=id;this.say(`${RELICS[id].name} ready. ${RELICS[id].use}`);}
- objectsAt(x,y){return this.data.objects.filter(o=>o.x===x&&o.y===y&&!o.removed)}
- tile(x,y){return this.data.grid[y]?.[x]??'#'}
- solid(o){if(o.removed)return false;if(o.type==='timegate')return this.data.timer<=0&&!this.data.solved;return['crate','vine','mirror','source','receiver','brazier','valve','resonator','inscription','relic','beacon','keeper','portal','hearth','rest','return','chest','sluice'].includes(o.type);}
- passable(x,y){return!['#','~'].includes(this.tile(x,y))&&!this.objectsAt(x,y).some(o=>this.solid(o));}
- allowedExit(e){if(this.room.type==='hub')return this.state.beacons.length>=e.need;return!e.forward||this.data.solved;}
- move(dx,dy){const s=this.state;if(!dx&&!dy)return false;s.face=[dx,dy];const nx=s.x+dx,ny=s.y+dy;
- if(this.tile(nx,ny)==='D'){const e=exitsFor(s.room).find(e=>{const[x,y]=DOOR_POS[e.dir];return x===nx&&y===ny});if(!e)return false;if(!this.allowedExit(e)){this.say(this.room.type==='hub'?`This arch wakes after ${e.need} beacon${e.need===1?'':'s'}. Begin with the open northern arch.`:'The next door is sealed. Complete this room’s trial to open it.');return false;}this.checkpoint();this.enter(e.to,e.dir,s.room);return true;}
- if(['#','~'].includes(this.tile(nx,ny))){if(this.tile(nx,ny)==='~')this.say('Deep water. Face a brass ring and use the Tidehook.');return false;}
- const obs=this.objectsAt(nx,ny).find(o=>this.solid(o));if(obs){if(obs.type==='crate'){const xx=nx+dx,yy=ny+dy;if(!this.passable(xx,yy)||this.tile(xx,yy)==='D'){this.say('The weight cannot go farther. Undo can recover any misplaced stone.');return false;}this.checkpoint();obs.x=xx;obs.y=yy;s.x=nx;s.y=ny;this.tick();this.checkSolved();return true;}this.say(this.description(obs));return false;}
- this.checkpoint();s.x=nx;s.y=ny;this.tick();this.onStep();return true;
+ enter(id,from=this.state.room){const back=exitsFor(id).find(e=>e.to===from);if(!back)throw Error('Rooms are not connected.');const [x,y]=DOOR_POS[back.dir],[dx,dy]=DIRS[back.dir];const edge=[from,id].sort().join(':');this.state.room=id;this.state.x=x-dx;this.state.y=y-dy;if(!this.state.visited.includes(id))this.state.visited.push(id);if(!this.state.connections.includes(edge))this.state.connections.push(edge);this.emit('arrive',this.room.name);this.say(this.room.arrival);}
+ nearest(){const s=this.state,front={x:s.x+s.face[0],y:s.y+s.face[1]};return this.data.objects.filter(o=>distance(s,o)<=1).sort((a,b)=>distance(a,front)-distance(b,front))[0];}
+ describe(o){const w=this.state.world;switch(o.type){
+ case'cord':return w.cords[o.index]?'The weight hangs high. Its catch is lifted.':'The weight rests low. Its cord is slack.';
+ case'shade':return w.shadeClosed?'The shaft holds the shutters closed. The repaired frame lies flat against its lip.':'The shaft holds the shutters open. Warm wood presses against the brass lip.';
+ case'shutter':return w.shadeClosed?'The shutters are closed. The square shaft holds them fast.':'Daylight falls through the shutters onto the cabinet frame.';
+ case'cabinet':return w.cabinetOpen?(this.has('blade')?'Dust outlines the blade that rested here.':'The glass door stands open. The gardener’s blade lies inside.'):'Cloudy glass hides a blade. Two brass catches bear on the door; its wooden edge presses against a curved lip.';
+ case'binding':return w.trellisCut?'The severed shoots lie beside the open trellis.':o.text;
+ case'damper':return w.damper?'The sleeve covers the returning branch. The pipe remains still.':'The returning branch is open. The pipe remains still.';
+ case'stand':return w.lanternAt===this.state.room+':'+o.id?'Your lantern rests on the stand.':o.text;
+ case'relief':return w.lanternAt==='A1:reader-stand'?'Side light reveals a fine seam following the carved hand. The ornament’s shadow almost meets it.':'A carved hand lies flat against the stone. In the even light, its edge is hard to distinguish.';
+ default:return o.text;
+ }}
+ inspect(o=this.nearest()){if(!o||distance(o,this.state)>1){this.say('There is nothing within reach.');return;}const text=this.describe(o),key=this.state.room+':'+o.id;this.record(o,text,key);this.emit('inspect',text,{title:o.name,boundary:o.type==='boundary'});}
+ record(o,text,key=this.state.room+':'+o.id){const entry=this.state.observations.find(e=>e.key===key);if(entry){if(!entry.texts.includes(text))entry.texts.push(text);}else this.state.observations.push({key,room:this.state.room,title:o.name,texts:[text]});}
+ interact(o=this.nearest()){if(!o||distance(o,this.state)>1){this.say('There is nothing within reach.');return;}const w=this.state.world;
+  if(o.type==='shade'){this.checkpoint();w.shadeClosed=!w.shadeClosed;this.emit('click',w.shadeClosed?'The wheel turns. Wood settles into shade; the shaft answers beyond the eastern wall.':'The wheel turns. Daylight returns. Beyond the wall, wood creaks against brass.');return;}
+  if(o.type==='cord'){this.checkpoint();w.cords[o.index]=!w.cords[o.index];this.emit('click',this.describe(o));return;}
+  if(o.type==='cabinet'){
+   if(w.cabinetOpen){if(!this.has('blade')){this.checkpoint();this.state.relics.push('blade');this.state.equipped='blade';this.emit('relic',RELICS.blade.description,{relic:'blade'});}else this.inspect(o);return;}
+   if(w.cords.every(Boolean)&&w.shadeClosed){this.checkpoint();w.cabinetOpen=true;this.emit('reveal','The wooden edge slips clear. The glass door opens with a small sigh.');}
+   else this.say(!w.cords.every(Boolean)?'Brass bears against the glass door. The frame does not move.':'Both brass catches lift clear. The wooden edge still binds.');return;
+  }
+  if(o.type==='damper'){this.checkpoint();w.damper=!w.damper;this.emit('click',this.describe(o));return;}
+  if(o.type==='stand'){this.placeLantern(o);return;}
+  if(o.type==='binding'&&this.state.equipped==='blade'){this.use('blade',o);return;}
+  this.inspect(o);
+  if(o.discovery&&!this.state.discoveries.includes(o.discovery)){this.checkpoint();this.state.discoveries.push(o.discovery);this.emit('discovery','The pressed leaf is still green.');}
  }
- enter(id,dir=null,from=null){const s=this.state;s.room=id;const d=this.current();let position=[8,10];if(dir&&from){const back=exitsFor(id).find(e=>e.to===from);if(back){const p=DOOR_POS[back.dir],v=DIRS[back.dir];position=[p[0]-v[0],p[1]-v[1]];}}
- if(['#','~'].includes(d.grid[position[1]][position[0]]))position=[4,10];s.x=position[0];s.y=position[1];s.face=[0,-1];if(!s.visited.includes(id))s.visited.push(id);s.hp=5;d.frozen=0;d.timer=0;this.history=[];this.emit('arrive',this.room.name);this.say(this.room.clue);}
- tick(){const d=this.data;this.state.steps++;d.turn++;if(d.frozen>0)d.frozen--;else if(d.timer>0)d.timer--;if(d.timer===0&&d.objects.some(o=>o.type==='timegate'&&o.x===this.state.x&&o.y===this.state.y)&&!d.solved){this.state.x=8;this.state.y=6;this.say('The gate closes gently, returning you to the near side.');}}
- onStep(){const d=this.data;for(const o of this.objectsAt(this.state.x,this.state.y)){if(o.type==='seed'&&!o.on){o.on=true;this.emit('chime','A sleeping stone wakes.');this.checkSolved();}if(o.type==='rune'&&d.revealed&&!d.solved){const order=SEQUENCES[this.room.variant];if(order[d.progress.length]===o.index){d.progress.push(o.index);this.emit('chime',`${o.label}. ${d.progress.length} of ${order.length} marks remembered.`);if(d.progress.length===order.length)this.solve();}else{d.progress=[];this.say(`${o.label} is not the next mark. The path fades. Begin again.`);}}} }
- nearest(){const s=this.state,front={x:s.x+s.face[0],y:s.y+s.face[1]};return this.data.objects.filter(o=>!o.removed&&distance(o,s)<=1&&!['plate','crate','anchor','rune','timegate'].includes(o.type)).sort((a,b)=>(distance(a,front)-distance(b,front))||distance(a,s)-distance(b,s))[0];}
- interact(obj=null){const o=obj??this.nearest();if(!o){this.say('Move beside an object to interact. Tap an object to approach it.');return;}if(distance(o,this.state)>1){this.say('Move closer first.');return;}
- const d=this.data,r=this.room,s=this.state;if(o.type==='inscription'){this.emit('inscription',r.clue);return;}if(o.type==='keeper'){this.emit('story','The keepers left their lights for someone else. Carry yours north, into the garden. The monastery will remember the rest.');return;}
- if(o.type==='portal'){if(s.beacons.length<4){this.say('The observatory wakes when the four lower beacons are lit.');return;}this.enter('stars-0');return;}
- if(o.type==='hearth'){if(s.beacons.length<5){this.say('Five empty lamps surround the hearth. Bring back the five beacon lights.');return;}if(!o.final){this.enter('hearth');return;}s.ended=true;d.solved=true;this.emit('ending','The doors of Hollowmere stand open again.');return;}
- if(o.type==='return'){if(!d.solved){this.say('Kindle this region’s beacon first.');return;}this.enter('hub');return;}
- if(o.type==='rest'){s.hp=5;this.emit('rest','You rest beside the warm stone. Your journey is saved.');return;}
- if(o.type==='relic'){this.checkpoint();if(!this.has(o.relic)){s.relics.push(o.relic);s.equipped=o.relic;}o.removed=true;d.solved=true;this.emit('relic',RELICS[o.relic].description,{relic:o.relic});return;}
- if(o.type==='beacon'){if(d.solved){this.say('The beacon is bright. The path home is open.');return;}const complete=Array.from({length:6},(_,i)=>s.rooms[`${ZONES[r.zone].id}-${i+1}`]?.solved).every(Boolean);if(!complete){this.say('The six trials of this region must be complete.');return;}this.checkpoint();d.solved=true;if(!s.beacons.includes(r.zone))s.beacons.push(r.zone);this.emit('beacon',ZONES[r.zone].epilogue,{zone:r.zone});return;}
- if(o.type==='chest'){if(!d.revealed){this.say('A faint lantern mark hangs in the air. Use your lantern here.');return;}if(d.solved){this.say('You have already kept this memory.');return;}this.checkpoint();d.solved=true;s.memories.push(r.zone);this.emit('memory',ZONES[r.zone].memoryText,{zone:r.zone});return;}
- if(o.type==='vine'){this.say('Equip the Thornblade, then use it to cut these roots.');return;}
- if(o.type==='brazier'){if(s.equipped!=='lantern'){this.say('Equip the lantern, then use it beside this brazier.');return;}this.use('lantern',o);return;}
- if(o.type==='source'){if(s.equipped!=='prism'){this.say('Equip the Dawn Prism and use it to wake this source.');return;}this.use('prism',o);return;}
- if(o.type==='resonator'){if(s.equipped!=='bell'){this.say('Equip the Echo Bell and use it beside this rune.');return;}this.use('bell',o);return;}
- if(o.type==='seed'){if(!o.on){this.checkpoint();o.on=true;this.emit('chime','A sleeping stone wakes.');this.checkSolved();}else this.say('This stone is awake.');return;}
- if(o.type==='mirror'){if(d.solved){this.say('The beam is home. Its mirrors can rest.');return;}this.checkpoint();o.angle=1-o.angle;this.emit('click','The mirror turns a quarter turn.');this.checkSolved();return;}
- if(o.type==='valve'){if(d.solved){this.say('The sluices hold steady.');return;}this.checkpoint();d.values[o.index]=(d.values[o.index]+1)%5;this.emit('click',`Wheel ${o.index+1}: ${d.values[o.index]}.`);return;}
- if(o.type==='sluice'){if(d.solved){this.say('The sluice is open.');return;}if(d.values.every((v,i)=>v===VALVES[r.variant][i]))this.solve();else this.say('The pressure is uneven. Check the inscription and adjust the three wheels.');return;}
- if(o.type==='clock'){if(d.solved){this.say('This moment has found its place.');return;}this.checkpoint();d.timer=r.variant==='time1'?8:10;this.emit('click',`The gate opens for ${d.timer} steps. Use Stillglass to hold the moment.`);return;}
+ placeLantern(o){const w=this.state.world,key=this.state.room+':'+o.id;if(w.lanternAt===key){this.checkpoint();w.lanternAt=null;this.state.equipped='lantern';this.say('You take the lantern.');return;}if(w.lanternAt){this.say('Your lantern is resting on a stand elsewhere.');return;}if(this.state.equipped!=='lantern'){this.inspect(o);return;}this.checkpoint();w.lanternAt=key;this.emit('reveal','You set the lantern on the stand. Shadows lean across the stone.');}
+ use(id=this.state.equipped,o=this.nearest()){if(!this.has(id))return;if(id==='lantern'){if(this.state.world.lanternAt){this.say('The lantern is resting on its stand.');return;}if(o?.type==='stand')return this.placeLantern(o);if(o)this.inspect(o);else this.say('Light runs along the joints in the stone.');return;}
+  if(id==='blade'){if(o?.type==='binding'&&distance(o,this.state)<=1&&!this.state.world.trellisCut){this.checkpoint();this.state.world.trellisCut=true;this.emit('cut','The fibrous shoots part. The trellis falls away from the passage.');}else this.say('The edge finds nothing to part.');}
  }
- use(id=this.state.equipped,obj=null){if(!this.has(id))return;const d=this.data,s=this.state,r=this.room;const near=obj??this.nearest();
- if(id==='lantern'){if(r.type==='runes'||r.type==='secret'){if(d.revealed){this.say(r.type==='secret'?'The hidden chest is visible. Open it.':r.clue);return;}this.checkpoint();d.revealed=true;this.emit('reveal',r.type==='secret'?'A hidden memory takes shape. Open the chest.':'Four marks emerge: leaf, rain, sun, moon. Follow the inscription’s order.');return;}if(near?.type==='brazier'){if(d.solved){this.say('The lanterns are in harmony.');return;}this.checkpoint();const order=SEQUENCES[r.variant];if(order[d.progress.length]===near.index){d.progress.push(near.index);near.on=true;this.emit('chime',`The ${['north','east','south','west'][near.index]} flame answers. ${d.progress.length} of 4.`);if(d.progress.length===order.length)this.solve();}else{d.progress=[];d.objects.filter(o=>o.type==='brazier').forEach(o=>o.on=false);this.emit('wrong','The flames fade. Read the inscription and begin the sequence again.');}return;}this.emit('reveal','Your lantern reaches into the corners. '+r.clue);return;}
- if(id==='blade'){const targets=d.objects.filter(o=>o.type==='vine'&&!o.removed&&distance(o,s)<=1);if(!targets.length){this.say('No thorns within reach. Move beside a vine.');return;}this.checkpoint();targets.forEach(o=>o.removed=true);this.emit('cut','The old thorns fall away.');return;}
- if(id==='hook'){const[dx,dy]=s.face;let x=s.x+dx,y=s.y+dy;for(let n=0;n<16;n++,x+=dx,y+=dy){if(this.tile(x,y)==='#')break;const a=this.objectsAt(x,y).find(o=>o.type==='anchor');if(a){this.checkpoint();s.x=x;s.y=y;this.tick();this.onStep();this.emit('hook','The Tidehook catches.');return;}if(this.objectsAt(x,y).some(o=>this.solid(o)))break;}this.say('Face a brass ring in a straight line, then cast the hook. Tap the ring to aim.');return;}
- if(id==='prism'){if(near?.type!=='source'){this.say('Bring the prism beside a sleeping light source.');return;}this.checkpoint();d.lit=true;this.emit('reveal','A beam of dawn wakes. Turn the mirrors to reach the crystal.');this.checkSolved();return;}
- if(id==='bell'){if(near?.type!=='resonator'){this.say('Stand beside a listening rune and sound the bell.');return;}if(d.solved){this.say('Every voice is heard.');return;}this.checkpoint();const n=d.notes.length;for(const i of new Set([(near.index+n-1)%n,near.index,(near.index+1)%n]))d.notes[i]=1-d.notes[i];this.emit('bell','One voice, and the two beside it, change.');this.checkSolved();return;}
- if(id==='hourglass'){if(d.frozen>0){this.say(`${d.frozen} borrowed steps remain.`);return;}this.checkpoint();d.frozen=12;this.emit('freeze','Time holds its breath. Twelve footsteps are yours.');return;}
- }
- beam(){const d=this.data,source=d.objects.find(o=>o.type==='source');if(!d.lit||!source)return{points:[],hit:false};let{x,y,dx,dy}=source;const points=[[x,y]],seen=new Set();for(let i=0;i<150;i++){x+=dx;y+=dy;const key=`${x},${y},${dx},${dy}`;if(seen.has(key))break;seen.add(key);if(this.tile(x,y)==='#'||x<1||y<1||x>15||y>11)break;points.push([x,y]);const o=this.objectsAt(x,y).find(o=>['mirror','receiver'].includes(o.type));if(o?.type==='receiver')return{points,hit:true};if(o?.type==='mirror'){if(o.angle===0)[dx,dy]=[-dy,-dx];else[dx,dy]=[dy,dx];}}
- return{points,hit:false};}
- checkSolved(){const d=this.data;if(d.solved)return;let yes=false;switch(this.room.type){case'weights':yes=d.objects.filter(o=>o.type==='plate').every(p=>d.objects.some(c=>c.type==='crate'&&c.x===p.x&&c.y===p.y));break;case'anchors':case'vines':case'timed':yes=d.objects.filter(o=>o.type==='seed').every(o=>o.on);break;case'resonance':yes=d.notes.every(Boolean);break;case'mirrors':yes=this.beam().hit;break;}if(yes)this.solve();}
- solve(){if(this.data.solved)return;this.data.solved=true;this.emit('solve','The room remembers. The next door opens.');}
- resetRoom(){const r=this.room;if(['hub','ending','relic','beacon','secret'].includes(r.type)){this.say('There is no puzzle to reset here.');return;}this.checkpoint();this.state.rooms[r.id]=this.build(r);this.state.x=this.tile(8,10)==='.'?8:4;this.state.y=10;this.state.face=[0,-1];this.say('The room returns to its first moment. Your relics and other rooms are safe.');}
- description(o){const names={crate:'A stone weight. Walk into it to push. You can undo any push.',vine:'Living thorns. Use the Thornblade beside them.',mirror:'A turning mirror. Stand beside it and interact.',brazier:'An unlit brazier. Use the lantern here, in the order of the inscription.',timegate:'A clockwork gate. Start the clock, then freeze time with Stillglass.',source:'A sleeping source. Use the Dawn Prism beside it.',receiver:'The crystal is waiting for a beam of dawn.',resonator:'A listening rune. Use the Echo Bell beside it.',valve:'A pressure wheel. Interact to turn it from 0 through 4.',relic:'A relic waits. Stand beside it and interact.',beacon:'A sleeping beacon. Stand beside it and kindle its light.',chest:'A memory waits in the dark. Bring your lantern.',portal:'The stair to the observatory. Four beacons awaken it.',hearth:'The old hearth. Five beacons will lead you home.'};return names[o.type]??'Stand beside this object and interact.';}
- hint(level=0){const r=this.room,d=this.data;const h={hub:['Start at the northern arch. Step onto the doorway to enter the Cloister.','After each beacon, return here. The arches open clockwise: north, east, south, west.','The central stair reaches the Observatory after four beacons. After five, approach the hearth on the right.'],relic:['Move beside the relic on the pedestal and press Interact.','Tap the relic to walk close to it, then press Take relic.','The next door opens as soon as you collect the relic.'],weights:['Push each stone weight onto a small gold pressure plate. You cannot pull stones.','Think about where you will stand to push. Keep a route around every weight; use Undo if a stone reaches a bad corner.','Use the room reset in the pause menu for a fresh start. The journal contains a full walkthrough for each weight puzzle.'],sequence:['Read the inscription. Its directions describe the order of the four braziers.','Equip the lantern, stand beside each brazier, and use it. A wrong flame resets the sequence.',`The order is ${(SEQUENCES[r.variant]??[]).map(n=>['north','east','south','west'][n]).join(' → ')}.`],vines:['Equip the Thornblade. The sleeping seeds are surrounded by thorns.','Use the blade beside vines; walk up to each crystal and interact.','Wake all three crystals: northwest, northeast, and south of center.'],runes:['Use the lantern to reveal four floor marks.','Walk onto the revealed marks in the order in the inscription.',`The order is ${(SEQUENCES[r.variant]??[]).map(n=>['leaf (upper left)','rain (upper right)','sun (lower left)','moon (lower right)'][n]).join(' → ')}.`],anchors:['Brass rings can be reached by casting the Tidehook in a straight line.','Walk to the first island along the bottom edge. Face the ring above you, then use the hook. You can tap a ring to aim.','Follow the rings north, east, then south. Wake every crystal along the way. In the Long Crossing, continue east and north.'],valves:['Each interaction turns a wheel one step: 0, 1, 2, 3, 4, then 0.','The inscription gives the three wheel settings from left to right. Then interact with the southern sluice.',`Set the wheels to ${(VALVES[r.variant]??[]).join(' · ')} and operate the sluice below.`],mirrors:['Equip the prism and use it beside the source.','Interact with mirrors to switch between / and \\. Trace the beam toward the receiving crystal.','A / mirror turns an eastward beam north; a \\ mirror turns it south. Work from the source to the receiver.'],resonance:['Sound the Echo Bell beside a rune. It flips that rune and its two neighbors.','The runes form a circle in their numbered order. Your goal is all lights on; pressing a rune twice cancels itself.','See “Puzzle solutions” in the journal for the exact rune numbers to sound.'],timed:['Interact with the clock to open the gate, then use Stillglass immediately.','You can cross the gate while time is frozen. Move directly toward the far crystal.',r.variant==='time2'?'Set the near clock, freeze time, face east and use the hook. Move up two steps, right through the gate, then toward the crystal.':'From the clock, freeze time. Approach the central gap in the dividing wall, cross it, and wake the crystal at the upper right.'],beacon:['The six trials before this room prepare the beacon.','Move beside the large crystal and press Kindle.','After lighting it, use the lower return stone to travel home.'],secret:['Use your lantern to reveal what the shadows are hiding.','Approach the chest at the center and interact.','The memory is an optional piece of the keepers’ story.'],ending:['Approach the hearth at the top of the room.','Press Leave the light.','Your journey has brought the light home.']};return(h[r.type]??[r.clue])[Math.min(level,2)];}
- snapshot(){return clone(this.state)}
 }
-export function validSave(s){return !!s&&s.version===1&&ROOMS[s.room]&&Number.isInteger(s.x)&&s.x>=1&&s.x<W-1&&Number.isInteger(s.y)&&s.y>=1&&s.y<H-1&&Array.isArray(s.relics)&&s.relics.every(id=>RELICS[id])&&Array.isArray(s.beacons)&&Array.isArray(s.memories)&&Array.isArray(s.visited)&&s.rooms&&typeof s.rooms==='object'&&Object.keys(s.rooms).every(id=>ROOMS[id]);}
+export function validSave(s){try{
+ if(!s||s.version!==2||s.campaign!==CAMPAIGN||!ROOMS[s.room]||!Number.isInteger(s.x)||!Number.isInteger(s.y)||s.x<2||s.x>14||s.y<2||s.y>10)return false;
+ if(!Array.isArray(s.face)||s.face.length!==2||!Object.values(DIRS).some(d=>d[0]===s.face[0]&&d[1]===s.face[1]))return false;
+ if(!Array.isArray(s.relics)||!s.relics.includes('lantern')||new Set(s.relics).size!==s.relics.length||s.relics.some(id=>!RELICS[id])||!s.relics.includes(s.equipped))return false;
+ if(!Array.isArray(s.visited)||!s.visited.includes(s.room)||s.visited.some(id=>!ROOMS[id]))return false;
+ const edges=Object.keys(ROOMS).flatMap(id=>exitsFor(id).map(e=>[id,e.to].sort().join(':')));
+ if(!Array.isArray(s.connections)||s.connections.some(e=>!edges.includes(e)))return false;
+ const w=s.world;if(!w||['shadeClosed','cabinetOpen','trellisCut','damper'].some(k=>typeof w[k]!=='boolean')||!Array.isArray(w.cords)||w.cords.length!==2||w.cords.some(v=>typeof v!=='boolean'))return false;
+ if(w.lanternAt!==null&&OBJECTS[w.lanternAt]?.type!=='stand')return false;
+ if(s.relics.includes('blade')&&!w.cabinetOpen||w.trellisCut&&!s.relics.includes('blade'))return false;
+ if(!s.positions||typeof s.positions!=='object'||Array.isArray(s.positions))return false;
+ for(const[k,p]of Object.entries(s.positions)){if(!OBJECTS[k]?.movable||!Number.isInteger(p.x)||!Number.isInteger(p.y)||p.x<2||p.x>14||p.y<2||p.y>10)return false;const r=ROOMS[OBJECTS[k].room];if(exitsFor(r.id).some(e=>{const[x,y]=DOOR_POS[e.dir],[dx,dy]=DIRS[e.dir];return p.x===x-dx&&p.y===y-dy;}))return false;if(r.walls?.some(([x,y])=>p.x===x&&p.y===y)||r.water?.some(([a,b,c,d])=>p.x>=a&&p.x<=c&&p.y>=b&&p.y<=d)||r.objects.some(o=>o.id!==OBJECTS[k].id&&!o.floor&&o.x===p.x&&o.y===p.y))return false;}
+ if(!Array.isArray(s.observations)||s.observations.length>200||s.observations.some(e=>!OBJECTS[e.key]||e.room!==OBJECTS[e.key].room||typeof e.title!=='string'||e.title.length>200||!Array.isArray(e.texts)||e.texts.length>20||e.texts.some(t=>typeof t!=='string'||t.length>4000)))return false;
+ if(typeof s.notes!=='string'||s.notes.length>4000||!Array.isArray(s.discoveries)||s.discoveries.some(d=>d!=='garden-letter'))return false;
+ if(!Number.isFinite(s.seconds)||s.seconds<0||!Number.isInteger(s.steps)||s.steps<0)return false;
+ const r=ROOMS[s.room];if(r.walls?.some(([x,y])=>s.x===x&&s.y===y)||r.water?.some(([a,b,c,d])=>s.x>=a&&s.x<=c&&s.y>=b&&s.y<=d))return false;
+ if(r.objects.some(o=>{const p=s.positions[s.room+':'+o.id]||o;return p.x===s.x&&p.y===s.y&&!o.floor&&!(o.type==='binding'&&w.trellisCut);}))return false;
+ return true;
+ }catch{return false;}}

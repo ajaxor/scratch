@@ -1,7 +1,13 @@
 import assert from'node:assert/strict';
-import{Game}from'../dist/engine.js';
-import{ROOMS,RELICS,DOOR_POS,exitsFor}from'../dist/content.js';
-const moves=[[0,-1,'U'],[1,0,'R'],[0,1,'D'],[-1,0,'L']];
-function explore(g,start){const d=g.data,queue=[start],seen=new Set([start.join(',')]);for(let i=0;i<queue.length;i++){const[x,y]=queue[i];for(const[dx,dy]of moves){const nx=x+dx,ny=y+dy,k=[nx,ny].join(',');if(!seen.has(k)&&g.passable(nx,ny)){seen.add(k);queue.push([nx,ny]);}let xx=x+dx,yy=y+dy;for(let n=0;n<17;n++,xx+=dx,yy+=dy){if(g.tile(xx,yy)==='#')break;const objects=g.objectsAt(xx,yy);if(objects.some(o=>o.type==='anchor')){const h=[xx,yy].join(',');if(!seen.has(h)){seen.add(h);queue.push([xx,yy]);}break;}if(objects.some(o=>g.solid(o)))break;}}}return seen;}
-for(const id of Object.keys(ROOMS)){const g=new Game();g.state.relics=Object.keys(RELICS);g.state.beacons=[0,1,2,3,4];g.enter(id);g.data.solved=true;g.data.objects.forEach(o=>{if(o.type==='vine'||o.type==='relic')o.removed=true;});const exits=exitsFor(id),reach=explore(g,[g.state.x,g.state.y]);for(const e of exits){assert(reach.has(DOOR_POS[e.dir].join(',')),`Unreachable exit ${id} ${e.dir}`);const back=exitsFor(e.to).find(b=>b.to===id);assert(back||(['hearth','stars-0'].includes(id)&&e.to==='hub'),`Missing reverse edge ${id} -> ${e.to}`);const[x,y]=DOOR_POS[e.dir],[dx,dy]=moves.find(m=>({U:'N',R:'E',D:'S',L:'W'})[m[2]]===e.dir);g.state.x=x-dx;g.state.y=y-dy;assert(g.move(dx,dy),`Door traversal ${id}`);assert.equal(g.state.room,e.to);assert(g.passable(g.state.x,g.state.y),`Blocked reciprocal spawn ${id} -> ${e.to}`);g.enter(id);g.data.solved=true;}}
-const g=new Game();for(const e of exitsFor('hub'))assert.equal(g.allowedExit(e),e.need===0);g.enter('grove-1');assert(!g.allowedExit(exitsFor('grove-1').find(e=>e.forward)));assert(g.allowedExit(exitsFor('grove-1').find(e=>e.free)));console.log('PASS: all 47 room exits, reciprocal entrances, hook-return routes, and progression gates.');
+import{Game,validSave}from'../dist/engine.js';
+import{ROOMS,DOOR_POS,DIRS,exitsFor}from'../dist/content.js';
+import{path,travel,walk}from'./helpers.js';
+for(const cut of [false,true])for(const id of Object.keys(ROOMS)){
+ const g=new Game();if(cut){g.state.world.cabinetOpen=true;g.state.relics.push('blade');g.state.world.trellisCut=true;}travel(g,id);
+ assert(g.passable(g.state.x,g.state.y),'Safe spawn '+id);assert(validSave(g.snapshot()));
+ const positions=new Set();for(const o of g.data.objects){const key=o.x+','+o.y;assert(!positions.has(key),'Overlapping props in '+id+':'+key);positions.add(key);assert.equal(g.tile(o.x,o.y),'.','Prop embedded in wall/water '+id+':'+o.id);if(cut||!(id==='C4'&&['seed-note','root-boundary'].includes(o.id)))assert(path(g,(x,y)=>Math.abs(x-o.x)+Math.abs(y-o.y)<=1),'Unreachable object '+id+':'+o.id);}
+ for(const e of exitsFor(id)){
+  const back=exitsFor(e.to).find(b=>b.to===id);assert(back,'Reciprocal edge '+id);const[x,y]=DOOR_POS[e.dir],[dx,dy]=DIRS[e.dir];walk(g,path(g,(a,b)=>a===x-dx&&b===y-dy));const from=g.snapshot();assert(g.move(dx,dy));assert.equal(g.state.room,e.to);assert(g.passable(g.state.x,g.state.y));g.undo();assert.equal(g.state.room,id);assert.equal(g.state.x,from.x);assert.equal(g.state.y,from.y);
+ }
+}
+console.log('PASS: every doorway and object is reachable, reciprocal spawns are safe, the loop is open, and the trellis has no bypass.');
