@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#09191e"><meta name="description" content="An atmospheric puzzle adventure. Explore the opening rooms of an abandoned monastery. Follow hidden connections and recover the gardener’s relic."><title>Hollowmere · The Last Lantern</title><link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2309191e'/%3E%3Cpath d='M12 9V5h8v4M10 10h12v15H10z' fill='none' stroke='%23e8bc69' stroke-width='2'/%3E%3Cpath d='M16 13l3 8h-6z' fill='%23e8bc69'/%3E%3C/svg%3E"><link rel="stylesheet" href="style.css?v=cloister-2"></head>
+<body>
+<main id="app">
+<section id="title-screen" class="screen">
+<div class="title-shade"></div><div class="title-top"><span class="edition">THE HOUSE OF THE ABSENT</span><button id="title-sound" class="icon-button" aria-label="Enable sound">♪</button></div>
+<div class="title-content"><div class="eyebrow"><span></span> THE LAST LANTERN <span></span></div><h1>Hollowmere</h1><p class="title-story">Some things are only lost<br>until you bring a light.</p><div class="title-actions"><button class="primary" id="begin">Enter Hollowmere <span>→</span></button><button id="continue" class="secondary" hidden>Continue your journey</button></div><p class="release-line"><span id="release-version">Version __RELEASE_VERSION__ · __RELEASE_BUILD__</span> <button id="check-update" class="text-button">Check for updates</button></p><p id="save-summary" class="fine">Opening chapter · Seven rooms. Your journey saves as you go.</p></div><div class="title-bottom"><span>EXPLORATION · RELICS · SECRETS</span><button id="title-help" class="text-button">How to play</button></div>
+</section>
+<section id="play-screen" class="screen" hidden>
+<header class="game-header"><button id="menu" class="icon-button" aria-label="Pause game">☰</button><div class="room-heading"><div id="region-label" class="eyebrow">THE THRESHOLD</div><h2 id="room-title">The Last Watch</h2></div><div class="header-actions"><button id="journal" class="icon-button" aria-label="Open journal">≡</button><button id="map" class="icon-button" aria-label="Open dungeon map">⌘</button></div></header>
+<div class="status-row"><div id="hearts" aria-label="Lantern light"></div><div id="quest"></div><div id="chapter-label">Opening chapter</div></div>
+<div id="stage"><canvas id="world" aria-label="Dungeon room. Use arrow keys or the direction buttons to move." tabindex="0"></canvas><div id="room-arrival" aria-hidden="true"></div><div class="stage-caption"><span id="room-number"></span><span id="room-state"></span></div><button id="inspect" class="stage-help" aria-label="Inspect a nearby object">◎</button></div>
+<div class="message-wrap"><div class="message-spark">✧</div><p id="message" role="status" aria-live="polite">The lantern has been waiting for you.</p></div>
+<div id="relic-bar" aria-label="Relics"></div>
+<div class="controls"><div class="dpad" aria-label="Movement"><button data-dir="0,-1" class="up" aria-label="Move up">↑</button><button data-dir="-1,0" class="left" aria-label="Move left">←</button><span class="pad-center">◇</span><button data-dir="1,0" class="right" aria-label="Move right">→</button><button data-dir="0,1" class="down" aria-label="Move down">↓</button></div><div class="control-middle"><span class="tap-hint">Tap a tile to walk</span><button id="undo" class="small-button">↶ Undo</button></div><div class="action-group"><button id="interact" class="action-button"><span id="action-icon">✧</span><span id="action-label">Interact</span></button><button id="use" class="tool-button">Use lantern</button></div></div>
+<footer class="game-footer"><span>HOLLOWMERE</span><span id="save-indicator">Journey saved</span><button id="controls-help" class="text-button">Controls</button></footer>
+</section>
+</main>
+<dialog id="modal"><div id="modal-content"></div></dialog>
+<script type="module" src="game.js?v=cloister-2"></script>
+</body></html>

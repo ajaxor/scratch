@@ -69,3 +69,11 @@ npm run check
 The checks cover three fresh-start branches, the remote cabinet condition, relic acquisition, the trellis and optional discovery, Lantern placement/recovery, save roundtrips and invalid-save rejection, every room entrance, every inspectable object's reachability, and cross-room undo. Browser/device visual QA and measured human puzzle difficulty have not been performed for this slice.
 
 The game has no npm dependencies, accounts, server logic, or combat. Existing title and environment artwork are reused. See [ARTWORK.md](ARTWORK.md) for asset provenance. The old prototype under `archive/` is historical source; it is not loaded by the game.
+
+## Cache-safe releases
+
+The stable `dist/index.html` launcher requests `release.json` with a unique URL and `cache: no-store` on each launch. It loads the selected release document under an explicit base URL. Every game module, stylesheet, and local image resolves inside that release's content-derived directory. Caching those files is safe because their directory changes whenever game code or artwork changes. The title screen displays the version and build actually running and offers **Check for updates**. Network or incomplete-publication failures show a retry screen rather than silently starting stale code. Save storage remains unchanged.
+
+Author the game document in `dist/game.html`, then run `npm run release` before publishing changes to `main`. Commit the generated release and manifest together, and retain previously published releases. `npm test` rejects a release manifest that no longer matches the authored game. A package version bump changes the readable version; the content-derived build changes automatically.
+
+A browser that still holds the old pre-loader HTML needs one visit to a fresh launcher URL (for example `dist/?launch=1.1.0`) to receive the loader. After that, ordinary launches check for updates. Already-running games keep their current release until relaunched; publishing does not interrupt a puzzle. GitHub Pages must finish publishing before a new release can be discovered.
