@@ -1,5 +1,5 @@
-import{ORIGINS,SCENERY}from'./architecture.js?v=cloister-2';
-import{W,H,ZONES,exitsFor}from'./content.js?v=cloister-2';
+import{ORIGINS,SCENERY}from'./architecture.js';
+import{W,H,ZONES,exitsFor}from'./content.js';
 const T=48;
 export class Renderer{
  constructor(canvas,game){this.canvas=canvas;this.ctx=canvas.getContext('2d');this.game=game;this.atlas=new Image();this.atlas.src='assets/atlas.webp';this.atlas.onload=()=>this.ready=true;this.props=new Image();this.props.src='assets/mechanisms.webp';this.props.onload=()=>this.propsReady=true;this.furniture=new Image();this.furniture.src='assets/furnishings.webp';this.furniture.onload=()=>this.furnitureReady=true;this.architecture=new Image();this.architecture.onload=()=>this.architectureReady=true;this.architecture.src='assets/cloister.webp';this.width=W*T;this.height=H*T;canvas.width=this.width*2;canvas.height=this.height*2;this.ctx.setTransform(2,0,0,2,0,0);this.px=game.state.x*T;this.py=game.state.y*T;this.lastRoom='';this.particles=[];this.target=null;this.shake=0;this.flash=0;this.reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;}
