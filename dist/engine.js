@@ -1,8 +1,10 @@
-import{W,H,CAMPAIGN,ROOMS,OBJECTS,RELICS,DOOR_POS,DIRS,exitsFor}from'./content.js?v=opening-1';
+import{groundAt,WALKABLE,SPAWNS}from'./architecture.js?v=cloister-2';
+import{W,H,CAMPAIGN,ROOMS,OBJECTS,RELICS,LAYOUT_REVISION,DIRS,exitsFor}from'./content.js?v=cloister-2';
 const clone=x=>JSON.parse(JSON.stringify(x));
-const distance=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y);
+export const distance=(a,b)=>Math.max(0,a.x-b.x-(b.w||1)+1,b.x-a.x-(a.w||1)+1)+Math.max(0,a.y-b.y-(b.h||1)+1,b.y-a.y-(a.h||1)+1);
+const cells=o=>Array.from({length:(o.w||1)*(o.h||1)},(_,i)=>[o.x+i%(o.w||1),o.y+Math.floor(i/(o.w||1))]);
 export class Game{
- constructor(saved=null){if(saved&&!validSave(saved))throw Error('This save is not a valid opening-chapter journey.');this.state=saved?clone(saved):{version:2,campaign:CAMPAIGN,room:'H',x:8,y:9,face:[0,-1],relics:['lantern'],equipped:'lantern',visited:['H'],connections:[],observations:[],notes:'',seconds:0,steps:0,world:{shadeClosed:false,cords:[false,false],cabinetOpen:false,trellisCut:false,damper:false,lanternAt:null},positions:{},discoveries:[]};this.events=[];this.history=[];}
+ constructor(saved=null){if(saved)saved=migrateSave(saved);if(saved&&!validSave(saved))throw Error('This save is not a valid opening-chapter journey.');this.state=saved?clone(saved):{version:2,layoutRevision:LAYOUT_REVISION,campaign:CAMPAIGN,room:'H',x:8,y:9,face:[0,-1],relics:['lantern'],equipped:'lantern',visited:['H'],connections:[],observations:[],notes:'',seconds:0,steps:0,world:{shadeClosed:false,cords:[false,false],cabinetOpen:false,trellisCut:false,damper:false,lanternAt:null},positions:{},discoveries:[]};this.events=[];this.history=[];}
  get room(){return ROOMS[this.state.room];}
  get data(){return{objects:this.room.objects.map(o=>({...o,...this.state.positions[this.state.room+':'+o.id]}))};}
  snapshot(){return clone(this.state);}
@@ -12,20 +14,21 @@ export class Game{
  checkpoint(snapshot=this.snapshot()){this.history.push(snapshot);if(this.history.length>160)this.history.shift();}
  undo(){if(!this.history.length)return;const old=this.state.room;const notes=this.state.notes;this.state=this.history.pop();this.state.notes=notes;this.events=[];this.say('A moment, returned.');if(old!==this.state.room)this.emit('arrive',this.room.name);}
  equip(id){if(!this.has(id))return;this.state.equipped=id;}
- tile(x,y){if(x<1||y<1||x>15||y>11)return'~';if(exitsFor(this.state.room).some(e=>DOOR_POS[e.dir][0]===x&&DOOR_POS[e.dir][1]===y))return'D';if(x===1||x===15||y===1||y===11||this.room.walls?.some(([a,b])=>a===x&&b===y))return'#';if(this.room.water?.some(([a,b,c,d])=>x>=a&&x<=c&&y>=b&&y<=d))return'~';return'.';}
- objectsAt(x,y){return this.data.objects.filter(o=>o.x===x&&o.y===y);}
+ tile(x,y){return groundAt(this.state.room,x,y);}
+ objectsAt(x,y){return this.data.objects.filter(o=>cells(o).some(([a,b])=>a===x&&b===y));}
  solid(o){return !o.floor&&!(o.type==='binding'&&this.state.world.trellisCut);}
- passable(x,y){return ['.','D'].includes(this.tile(x,y))&&!this.objectsAt(x,y).some(o=>this.solid(o));}
+ passable(x,y){return WALKABLE.has(this.tile(x,y))&&!this.objectsAt(x,y).some(o=>this.solid(o));}
  allowedExit(){return true;}
- landing(x,y,room=this.state.room){return exitsFor(room).some(e=>{const[a,b]=DOOR_POS[e.dir],[dx,dy]=DIRS[e.dir];return x===a-dx&&y===b-dy;});}
+ landing(x,y,room=this.state.room){return exitsFor(room).some(e=>e.landing[0]===x&&e.landing[1]===y);}
+ canPush(o,dx,dy){return cells({...o,x:o.x+dx,y:o.y+dy}).every(([x,y])=>WALKABLE.has(this.tile(x,y))&&this.tile(x,y)!=='D'&&!this.landing(x,y)&&!this.objectsAt(x,y).some(p=>p.id!==o.id&&this.solid(p)));}
  move(dx,dy){if(Math.abs(dx)+Math.abs(dy)!==1)return false;const s=this.state,previous=this.snapshot();s.face=[dx,dy];const x=s.x+dx,y=s.y+dy;
-  if(this.tile(x,y)==='D'){const e=exitsFor(s.room).find(e=>DOOR_POS[e.dir][0]===x&&DOOR_POS[e.dir][1]===y);this.checkpoint(previous);s.steps++;this.enter(e.to,s.room);return true;}
-  if(['#','~'].includes(this.tile(x,y)))return false;
+  if(this.tile(x,y)==='D'){const e=exitsFor(s.room).find(e=>e.at[0]===x&&e.at[1]===y);this.checkpoint(previous);s.steps++;this.enter(e.to,s.room);return true;}
+  if(!WALKABLE.has(this.tile(x,y)))return false;
   const o=this.objectsAt(x,y).find(o=>this.solid(o));
-  if(o){if(o.movable&&this.passable(x+dx,y+dy)&&this.tile(x+dx,y+dy)!=='D'&&!this.landing(x+dx,y+dy)){this.checkpoint(previous);s.positions[s.room+':'+o.id]={x:x+dx,y:y+dy};s.x=x;s.y=y;s.steps++;this.say('The wheels scrape across the stone.');return true;}this.say(this.describe(o));return false;}
+  if(o){if(o.movable&&this.canPush(o,dx,dy)){this.checkpoint(previous);s.positions[s.room+':'+o.id]={x:o.x+dx,y:o.y+dy};s.x=x;s.y=y;s.steps++;this.say('The wheels scrape across the stone.');return true;}this.say(this.describe(o));return false;}
   this.checkpoint(previous);s.x=x;s.y=y;s.steps++;return true;
  }
- enter(id,from=this.state.room){const back=exitsFor(id).find(e=>e.to===from);if(!back)throw Error('Rooms are not connected.');const [x,y]=DOOR_POS[back.dir],[dx,dy]=DIRS[back.dir];const edge=[from,id].sort().join(':');this.state.room=id;this.state.x=x-dx;this.state.y=y-dy;if(!this.state.visited.includes(id))this.state.visited.push(id);if(!this.state.connections.includes(edge))this.state.connections.push(edge);this.emit('arrive',this.room.name);this.say(this.room.arrival);}
+ enter(id,from=this.state.room){const back=exitsFor(id).find(e=>e.to===from);if(!back)throw Error('Rooms are not connected.');const [x,y]=back.landing,[dx,dy]=DIRS[back.dir];const edge=[from,id].sort().join(':');this.state.room=id;this.state.x=x;this.state.y=y;this.state.face=[-dx,-dy];if(!this.state.visited.includes(id))this.state.visited.push(id);if(!this.state.connections.includes(edge))this.state.connections.push(edge);this.emit('arrive',this.room.name);this.say(this.room.arrival);}
  nearest(){const s=this.state,front={x:s.x+s.face[0],y:s.y+s.face[1]};return this.data.objects.filter(o=>distance(s,o)<=1).sort((a,b)=>distance(a,front)-distance(b,front))[0];}
  describe(o){const w=this.state.world;switch(o.type){
  case'cord':return w.cords[o.index]?'The weight hangs high. Its catch is lifted.':'The weight rests low. Its cord is slack.';
@@ -59,8 +62,8 @@ export class Game{
   if(id==='blade'){if(o?.type==='binding'&&distance(o,this.state)<=1&&!this.state.world.trellisCut){this.checkpoint();this.state.world.trellisCut=true;this.emit('cut','The fibrous shoots part. The trellis falls away from the passage.');}else this.say('The edge finds nothing to part.');}
  }
 }
-export function validSave(s){try{
- if(!s||s.version!==2||s.campaign!==CAMPAIGN||!ROOMS[s.room]||!Number.isInteger(s.x)||!Number.isInteger(s.y)||s.x<2||s.x>14||s.y<2||s.y>10)return false;
+function validate(s,legacy=false){try{
+ if(!s||s.version!==2||s.campaign!==CAMPAIGN||!ROOMS[s.room]||!Number.isInteger(s.x)||!Number.isInteger(s.y)||s.x<0||s.x>=W||s.y<0||s.y>=H)return false;
  if(!Array.isArray(s.face)||s.face.length!==2||!Object.values(DIRS).some(d=>d[0]===s.face[0]&&d[1]===s.face[1]))return false;
  if(!Array.isArray(s.relics)||!s.relics.includes('lantern')||new Set(s.relics).size!==s.relics.length||s.relics.some(id=>!RELICS[id])||!s.relics.includes(s.equipped))return false;
  if(!Array.isArray(s.visited)||!s.visited.includes(s.room)||s.visited.some(id=>!ROOMS[id]))return false;
@@ -70,11 +73,22 @@ export function validSave(s){try{
  if(w.lanternAt!==null&&OBJECTS[w.lanternAt]?.type!=='stand')return false;
  if(s.relics.includes('blade')&&!w.cabinetOpen||w.trellisCut&&!s.relics.includes('blade'))return false;
  if(!s.positions||typeof s.positions!=='object'||Array.isArray(s.positions))return false;
- for(const[k,p]of Object.entries(s.positions)){if(!OBJECTS[k]?.movable||!Number.isInteger(p.x)||!Number.isInteger(p.y)||p.x<2||p.x>14||p.y<2||p.y>10)return false;const r=ROOMS[OBJECTS[k].room];if(exitsFor(r.id).some(e=>{const[x,y]=DOOR_POS[e.dir],[dx,dy]=DIRS[e.dir];return p.x===x-dx&&p.y===y-dy;}))return false;if(r.walls?.some(([x,y])=>p.x===x&&p.y===y)||r.water?.some(([a,b,c,d])=>p.x>=a&&p.x<=c&&p.y>=b&&p.y<=d)||r.objects.some(o=>o.id!==OBJECTS[k].id&&!o.floor&&o.x===p.x&&o.y===p.y))return false;}
+ for(const[k,p]of Object.entries(s.positions)){if(!OBJECTS[k]?.movable||!Number.isInteger(p.x)||!Number.isInteger(p.y))return false;}
  if(!Array.isArray(s.observations)||s.observations.length>200||s.observations.some(e=>!OBJECTS[e.key]||e.room!==OBJECTS[e.key].room||typeof e.title!=='string'||e.title.length>200||!Array.isArray(e.texts)||e.texts.length>20||e.texts.some(t=>typeof t!=='string'||t.length>4000)))return false;
  if(typeof s.notes!=='string'||s.notes.length>4000||!Array.isArray(s.discoveries)||s.discoveries.some(d=>d!=='garden-letter'))return false;
  if(!Number.isFinite(s.seconds)||s.seconds<0||!Number.isInteger(s.steps)||s.steps<0)return false;
- const r=ROOMS[s.room];if(r.walls?.some(([x,y])=>s.x===x&&s.y===y)||r.water?.some(([a,b,c,d])=>s.x>=a&&s.x<=c&&s.y>=b&&s.y<=d))return false;
- if(r.objects.some(o=>{const p=s.positions[s.room+':'+o.id]||o;return p.x===s.x&&p.y===s.y&&!o.floor&&!(o.type==='binding'&&w.trellisCut);}))return false;
+ if(!legacy){
+ if(s.layoutRevision!==LAYOUT_REVISION)return false;
+ for(const id of Object.keys(ROOMS)){
+ const obs=ROOMS[id].objects.map(o=>({...o,...s.positions[id+':'+o.id]}));
+ for(const o of obs.filter(o=>o.movable))for(const[x,y]of cells(o)){
+ if(!WALKABLE.has(groundAt(id,x,y))||groundAt(id,x,y)==='D'||exitsFor(id).some(e=>e.landing[0]===x&&e.landing[1]===y)||obs.some(p=>p.id!==o.id&&!p.floor&&cells(p).some(([a,b])=>a===x&&b===y)))return false;
+ }
+ }
+ if(!WALKABLE.has(groundAt(s.room,s.x,s.y))||groundAt(s.room,s.x,s.y)==='D')return false;
+ if(ROOMS[s.room].objects.some(o=>{const p={...o,...s.positions[s.room+':'+o.id]};return cells(p).some(([x,y])=>x===s.x&&y===s.y)&&!o.floor&&!(o.type==='binding'&&w.trellisCut);}))return false;
+ }
  return true;
  }catch{return false;}}
+export function migrateSave(s){if(s?.layoutRevision===undefined&&validate(s,true)){const next=clone(s);next.layoutRevision=LAYOUT_REVISION;next.positions={};[next.x,next.y]=SPAWNS[next.room];return next;}return s;}
+export function validSave(s){return validate(migrateSave(s));}
