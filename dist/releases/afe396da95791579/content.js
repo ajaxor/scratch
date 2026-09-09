@@ -1,5 +1,5 @@
 import{WORKS_ROOMS,WORKS_RELICS}from'./works-content.js';
-import { architecturalExits } from './architecture.js?v=cloister-2';
+import { architecturalExits } from './architecture.js';
 export const W=17,H=13;
 export const CAMPAIGN='absent-opening';
 export const LAYOUT_REVISION=2;

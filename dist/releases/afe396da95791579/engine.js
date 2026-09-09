@@ -1,6 +1,6 @@
 import{worksDefaults,flowing,describeWorks,interactWorks,useWorks,validWorks}from'./works.js';
-import{groundAt,WALKABLE,SPAWNS}from'./architecture.js?v=cloister-2';
-import{W,H,CAMPAIGN,ROOMS,OBJECTS,RELICS,LAYOUT_REVISION,DIRS,exitsFor}from'./content.js?v=cloister-2';
+import{groundAt,WALKABLE,SPAWNS}from'./architecture.js';
+import{W,H,CAMPAIGN,ROOMS,OBJECTS,RELICS,LAYOUT_REVISION,DIRS,exitsFor}from'./content.js';
 const clone=x=>JSON.parse(JSON.stringify(x));
 export const distance=(a,b)=>Math.max(0,a.x-b.x-(b.w||1)+1,b.x-a.x-(a.w||1)+1)+Math.max(0,a.y-b.y-(b.h||1)+1,b.y-a.y-(a.h||1)+1);
 const cells=o=>Array.from({length:(o.w||1)*(o.h||1)},(_,i)=>[o.x+i%(o.w||1),o.y+Math.floor(i/(o.w||1))]);

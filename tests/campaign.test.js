@@ -2,7 +2,7 @@ import assert from'node:assert/strict';
 import{Game,validSave}from'../dist/engine.js';
 import{ROOMS}from'../dist/content.js';
 import{travel,operate,path,walk}from'./helpers.js';
-const g=new Game();assert.equal(Object.keys(ROOMS).length,7);assert(validSave(g.snapshot()));
+const g=new Game();assert.equal(Object.keys(ROOMS).length,13);assert(validSave(g.snapshot()));
 // Three genuine starting branches, without first solving a trial.
 for(const id of ['A1','T1','C4','C3','C2']){travel(g,id);assert(!g.has('blade'));assert(validSave(g.snapshot()));}
 // The two local catches alone cannot release the swollen cabinet.

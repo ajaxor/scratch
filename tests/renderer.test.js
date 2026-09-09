@@ -11,7 +11,7 @@ const gradient={addColorStop(){}};
 const ctx=new Proxy({createRadialGradient:()=>gradient},{get:(o,k)=>k in o?o[k]:()=>{}});
 for(const lanternAt of[null,'A1:reader-stand']){
  const game=new Game(),renderer=new Renderer({getContext:()=>ctx},game);
- game.state.world.lanternAt=lanternAt;
+ game.state.world.lanternAt=lanternAt;game.state.world.works.tideGate=true;
  let playerDraws=0;
  renderer.sprite=(index)=>{if(index>=0&&index<=3)playerDraws++;};
  for(const id of Object.keys(ROOMS)){

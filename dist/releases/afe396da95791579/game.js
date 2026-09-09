@@ -1,7 +1,7 @@
-import{GEOMETRY,WALKABLE}from'./architecture.js?v=cloister-2';
-import{Game,validSave,distance}from'./engine.js?v=cloister-2';
-import{ROOMS,RELICS,ZONES,DIRS,exitsFor}from'./content.js?v=cloister-2';
-import{Renderer}from'./renderer.js?v=cloister-2';
+import{GEOMETRY,WALKABLE}from'./architecture.js';
+import{Game,validSave,distance}from'./engine.js';
+import{ROOMS,RELICS,ZONES,DIRS,exitsFor}from'./content.js';
+import{Renderer}from'./renderer.js';
 import{Sound}from'./audio.js';
 const $=id=>document.getElementById(id),key='hollowmere.journey.v2',oldKey='hollowmere.journey.v1',sound=new Sound(),modal=$('modal');
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
