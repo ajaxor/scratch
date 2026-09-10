@@ -1,7 +1,7 @@
 import assert from'node:assert/strict';
 import{Game,validSave,distance}from'../dist/engine.js';
 import{flowing,balanced}from'../dist/works.js';
-import{path,travel,walk,operate}from'./helpers.js';
+import{path,travel,walk,operate,findLantern}from'./helpers.js';
 function approach(g,id){const o=g.data.objects.find(o=>o.id===id);assert(o,id);walk(g,path(g,(x,y)=>distance({x,y},o)===1));return o;}
 function use(g,item,id){g.equip(item);g.use(item,approach(g,id));g.events=[];}
 function blade(g){travel(g,'C2');if(!g.state.world.shadeClosed)operate(g,'shade-wheel');travel(g,'C3');for(const [i,id]of['left-cord','right-cord'].entries())if(!g.state.world.cords[i])operate(g,id);operate(g,'cabinet');operate(g,'cabinet');assert(g.has('blade'));}
@@ -13,6 +13,7 @@ for(const order of[['hook','bell','blade'],['bell','blade','hook'],['blade','hoo
  // Every outer works room is initially explorable; the central loop needs no relic.
  for(const id of['W1','W2','W3','W4','W5']){travel(g,id);assert(validSave(g.snapshot()));}
  travel(g,'W5');walk(g,path(g,(x,y)=>x===15&&y===5));assert(!g.move(1,0));assert.equal(g.state.room,'W5');
+ findLantern(g);
  for(const step of order)({hook,bell,blade})[step](g);
  travel(g,'W2');use(g,'bell','mouth-0');assert.deepEqual(g.state.world.works.song,[],'Dry well cannot count notes');
  water(g);travel(g,'W2');use(g,'bell','mouth-1');assert.deepEqual(g.state.world.works.song,[],'Wrong note resets safely');
@@ -25,7 +26,7 @@ for(const order of[['hook','bell','blade'],['bell','blade','hook'],['blade','hoo
  travel(g,'H');use(g,'tideglass','window-0');assert(g.state.world.works.tideLit);g.undo();assert(!g.state.world.works.tideLit);use(g,'tideglass','window-0');assert(validSave(g.snapshot()));
 }
 // Existing architectural saves retain exact spatial and notebook state.
-const old=new Game().snapshot();delete old.expansion;delete old.world.works;old.notes='A theory I want to keep';const upgraded=new Game(old);assert.equal(upgraded.state.notes,old.notes);assert.equal(upgraded.state.x,old.x);assert.equal(upgraded.state.y,old.y);assert(validSave(upgraded.snapshot()));
+const old=new Game().snapshot();delete old.toolRevision;delete old.world.tools;delete old.expansion;delete old.world.works;old.notes='A theory I want to keep';const upgraded=new Game(old);assert.equal(upgraded.state.notes,old.notes);assert.equal(upgraded.state.x,old.x);assert.equal(upgraded.state.y,old.y);assert(validSave(upgraded.snapshot()));
 // Remote actions cannot bypass physical reach; a ballast cannot be pushed off its rails.
 const g=new Game();travel(g,'W3');const ballast=g.data.objects.find(o=>o.id==='ballast');assert(!g.canPush(ballast,0,1));assert(!g.canPush({...ballast,x:10},1,0));g.equip('lantern');g.use('lantern',{type:'stand',id:'remote',x:99,y:99});assert.equal(g.state.world.lanternAt,null);
 console.log('PASS: three independent acquisition orders, open works loop, remote hydraulics, wrong experiments, signal gate, beacon, save migration and undo.');

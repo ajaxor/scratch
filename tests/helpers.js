@@ -4,3 +4,5 @@ export function path(g,goal){const q=[[g.state.x,g.state.y,[]]],seen=new Set([`$
 export function walk(g,p){assert(p,'A walking path must exist in '+g.state.room);for(const[dx,dy]of p){assert(g.move(dx,dy));g.events=[];}}
 export function operate(g,id,method='interact'){const o=g.data.objects.find(o=>o.id===id);assert(o,'Missing '+id);walk(g,path(g,(x,y)=>Math.abs(x-o.x)+Math.abs(y-o.y)===1));g[method](o);g.events=[];}
 export function travel(g,to){const q=[[g.state.room,[]]],seen=new Set();let route;for(let i=0;i<q.length;i++){const[id,p]=q[i];if(id===to){route=p;break;}if(seen.has(id))continue;seen.add(id);for(const e of exitsFor(id)){if(e.to==='W6'&&!g.state.world.works.tideGate)continue;if([id,e.to].sort().join(':')==='C4:W4'&&!g.state.world.trellisCut)continue;q.push([e.to,[...p,e]]);}}assert(route,'No route to '+to);for(const e of route){const[x,y]=e.at,[dx,dy]=DIRS[e.dir];walk(g,path(g,(a,b)=>a===x-dx&&b===y-dy));assert(g.move(dx,dy));assert.equal(g.state.room,e.to);g.events=[];}}
+
+export function findLantern(g){if(g.has('lantern'))return;travel(g,'C1');operate(g,'found-lantern');assert(g.has('lantern'));}

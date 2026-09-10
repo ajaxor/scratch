@@ -18,7 +18,7 @@ python -m http.server 8080
 - Six new rooms form the Drowned Works, with independent equipment, shadow, and water puzzles that converge on the ferryman’s vigil. See [the implemented design](docs/DROWNED_WORKS.md) for designer spoilers.
 - Three immediately open sanctuary exits and a freely traversable cloister loop.
 - A gardener’s cabinet with a visible mechanical linkage, a shadow-operated compartment, a counterweighted tool cradle, shared water routing, and a ferry signal mechanism.
-- A usable Thornblade, a cuttable trellis, and a small optional discovery beyond it.
+- A discoverable lantern, tile-based light and darkness, persistent oil lamps, ivy-covered windows, cuttable growth and parcels, hook crossings and cart pulls, and bell-revealed hollow stones. See [visible tool play](docs/VISIBLE_TOOL_PLAY.md).
 - A placeable Lantern and a completed shadow puzzle in the Borrowers’ Hall; recoverable Tidehook and Echo Bell; a Tideglass vigil to restore in the original hall.
 - Furnished rooms with ordinary inspectable objects, world-state feedback, and clues intended to matter in later chapters.
 - A journal of inspected observations plus player notes, and a map of walked passages.
@@ -35,19 +35,19 @@ The complete campaign blueprint remains in [docs/NONLINEAR_LEVEL_DESIGN.md](docs
 | Action | Touch / mouse | Keyboard |
 | --- | --- | --- |
 | Move | Tap floor or hold direction buttons | Arrows / WASD |
-| Operate nearby object | Interact | E / Enter |
-| Inspect without operating | Tap nearby object or ◎ | R |
+| Operate object / apply matching tool | Tap object or Interact | E / Enter |
+| Inspect without operating | ◎ | R |
 | Use selected relic | Relic action button | Space |
 | Equip a recovered relic | Relic slot | 1–5 |
 | Undo | Undo | Z |
 | Map / journal | Header buttons | M / J |
 | Pause | Menu | Escape |
 
-Tap a distant object to approach it. Walk against wheeled objects to push them. Interact with a stand while carrying the Lantern to place it; interact with that stand again to retrieve it. A placed Lantern stays where it was left. Personal journal notes remain intact when undoing world actions.
+Tap a distant object to approach and operate it. Select a tool to apply it directly to a matching object. Dark writing needs light; cut growth and lit lamps persist. Walk against wheeled objects to push them. Interact with a stand while carrying the Lantern to place it; interact with that stand again to retrieve it. A placed Lantern stays where it was left. Personal journal notes remain intact when undoing world actions.
 
 ## Saves
 
-Existing opening and architectural saves migrate automatically into the expanded game. The expansion preserves current positions and adds unstarted works mechanisms. The earlier architectural revision migrated old layouts by relocating positions: puzzle flags, tools, placed Lantern, discoveries, observations, and notes survive. Player and movable furniture positions reset to safe locations in the redesigned rooms. The original browser save is retained under `hollowmere.before-cloister`.
+Existing opening and architectural saves migrate automatically into the expanded game. Version 1.3 adds persistent lighting and tool effects, preserving existing tools and puzzle progress. Newly added growth is cleared where it would overlap an existing player or moved cart. Only fresh journeys start without the lantern. The expansion preserves current positions and adds unstarted works mechanisms. The earlier architectural revision migrated old layouts by relocating positions: puzzle flags, tools, placed Lantern, discoveries, observations, and notes survive. Player and movable furniture positions reset to safe locations in the redesigned rooms. The original browser save is retained under `hollowmere.before-cloister`.
 
 New saves use layout revision 2, version 2, campaign `absent-opening`, and localStorage key `hollowmere.journey.v2`. The previous `hollowmere.journey.v1` key is left untouched and can be downloaded with **Export previous campaign save** in the pause menu. Old campaign progress cannot be imported into the new room network.
 
@@ -59,6 +59,7 @@ Saves are local to this browser and origin. Export/import supports backups and d
 - `dist/content.js`: explicit rooms, props, inscriptions, and reciprocal connections.
 - `dist/works-content.js` and `dist/works.js`: six additional rooms and the shared water, balance, shadow, signal and vigil systems.
 - `dist/engine.js`: movement, interaction, shared world state, inventory, undo, and save validation.
+- `dist/tool-content.js`, `dist/tool-play.js`, `dist/lighting.js`, `dist/tool-render.js`: physical tool interactions, light states and their presentation.
 - `dist/renderer.js`: canvas room rendering with existing environment art and the new furnishing atlas.
 - `dist/game.js`: touch/keyboard controls, journal, map, menus, and persistence.
 - `tests/`: movement-level opening walkthrough and navigation checks.

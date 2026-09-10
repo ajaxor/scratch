@@ -1,11 +1,11 @@
 {
   "name": "hollowmere",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node tests/campaign.test.js && node tests/navigation.test.js && node tests/loader.test.js && node tests/renderer.test.js && node tests/works.test.js",
-    "check": "node --check dist/game.js && node --check dist/engine.js && node --check dist/renderer.js && node --check dist/content.js && node --check dist/works.js && node --check dist/works-content.js && node --check dist/architecture.js",
+    "test": "node tests/campaign.test.js && node tests/navigation.test.js && node tests/loader.test.js && node tests/renderer.test.js && node tests/works.test.js && node tests/tool-play.test.js",
+    "check": "node --check dist/game.js && node --check dist/engine.js && node --check dist/renderer.js && node --check dist/content.js && node --check dist/works.js && node --check dist/works-content.js && node --check dist/architecture.js && node --check dist/lighting.js && node --check dist/tool-play.js && node --check dist/tool-content.js && node --check dist/tool-render.js",
     "release": "node scripts/release.mjs"
   }
 }

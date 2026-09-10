@@ -23,3 +23,7 @@ Prompt: “Production sprite atlas for the Hollowmere browser RPG. One square RG
 ## Cloister architecture
 
 `dist/assets/cloister.webp` is an original AI-generated transparent environment atlas created for this architectural revision with OpenAI image generation. It contains the courtyard tree, masonry columns, herb beds, wash troughs, steps, bridge, balustrades, bookcase, linens, window, and drain. Sprite crops are explicitly defined in the renderer; the atlas is not a uniform grid.
+
+## Empty-handed explorer
+
+`dist/assets/explorer.webp` is original AI-generated artwork created for the visible-tool revision. A single transparent sheet depicts the hooded explorer empty-handed in four directions (down, up, left, right), in the existing painterly pixel-art palette. The generated silhouettes were cropped and encoded into four 128 × 160 cells with alpha preserved. The lantern is now overlaid separately from the existing atlas only when recovered and carried, so character artwork reflects inventory and placement. No third-party asset pack or downloaded image was added for this revision.
